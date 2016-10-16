@@ -54,9 +54,8 @@ function validateOperation(operation) {
     if (operation.action !== 'delete') {
         assert(operation.body, 'body is required');
 
-        if (operation.action === 'update_by_query') {
-            assert(operation.body.script, 'body.script is required');
-            assert(operation.body.query, 'body.query is required');
+        if (operation.action === 'update') {
+            assert(operation.body.body, 'body.body is required');
         }
     }
 
@@ -137,13 +136,13 @@ ElasticsearchWritable.prototype.bulkWrite = function bulkWrite(records, callback
  */
 ElasticsearchWritable.prototype.partialUpdate = function partialUpdate(operation, callback) {
     if (this.logger) {
-        this.logger.debug('Executing update_by_query in Elasticsearch');
+        this.logger.debug('Executing update in Elasticsearch');
     }
 
     var op = _.cloneDeep(operation);
     delete op.action;
 
-    this.client.updateByQuery(op, function bulkCallback(err, data) {
+    this.client.update(op, function bulkCallback(err, data) {
         if (err) {
             err.operation = operation;
             return callback(err);
@@ -154,14 +153,14 @@ ElasticsearchWritable.prototype.partialUpdate = function partialUpdate(operation
                 data.failures.forEach(this.logger.error.bind(this.logger));
             }
 
-            var error = new Error('One or more failures occurred during update_by_query.');
+            var error = new Error('One or more failures occurred during update.');
             error.operation = operation;
 
             return callback(error);
         }
 
         if (this.logger) {
-            this.logger.info('Updated %d records (via update_by_query) in Elasticsearch', data.updated);
+            this.logger.info('Updated %d records (via update) in Elasticsearch', data.updated);
         }
 
         this.writtenRecords += data.updated;
@@ -232,7 +231,7 @@ ElasticsearchWritable.prototype._write = function _write(record, enc, callback) 
         return callback(error);
     }
 
-    if (record.action === 'update_by_query') {
+    if (record.action === 'update') {
         return this.partialUpdate(record, callback);
     }
 
